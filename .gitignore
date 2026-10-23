@@ -1,0 +1,13 @@
+# build output
+build/
+dist/
+Main Dist/
+__pycache__/
+*.pyc
+
+# generated labels / validation output
+output/
+_validate_out/
+*.jpg
+
+.DS_Store

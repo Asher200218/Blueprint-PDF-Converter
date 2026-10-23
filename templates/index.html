@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagram Label Formatter</title>
+<style>
+  :root {
+    --bg: #0f172a; --panel: #1e293b; --panel2: #273449; --line: #334155;
+    --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8; --accent2: #22d3ee;
+    --ok: #34d399; --err: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(1200px 600px at 50% -10%, #16243f, var(--bg));
+    color: var(--text); min-height: 100vh;
+  }
+  header { text-align: center; padding: 32px 16px 8px; }
+  h1 { margin: 0; font-size: 26px; letter-spacing: .3px; }
+  header p { color: var(--muted); margin: 8px 0 0; font-size: 14px; }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  .drop {
+    border: 2px dashed var(--line); border-radius: 16px; background: var(--panel);
+    padding: 44px 24px; text-align: center; transition: .15s; cursor: pointer;
+  }
+  .drop.drag { border-color: var(--accent); background: var(--panel2); transform: translateY(-1px); }
+  .drop .big { font-size: 17px; font-weight: 600; }
+  .drop .sub { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  .drop svg { width: 46px; height: 46px; stroke: var(--accent); margin-bottom: 10px; }
+
+  .opts { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center;
+          margin: 16px 2px 0; font-size: 13px; color: var(--muted); }
+  .opts input[type=text] {
+    flex: 1; min-width: 240px; background: #0b1220; border: 1px solid var(--line);
+    color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: 13px;
+  }
+  .opts label { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+  .opts input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); }
+
+  .status { margin: 18px 2px 0; min-height: 20px; font-size: 14px; }
+  .status .spin { display: inline-block; width: 15px; height: 15px; border: 2px solid var(--line);
+                  border-top-color: var(--accent); border-radius: 50%; animation: sp .7s linear infinite;
+                  vertical-align: -2px; margin-right: 8px; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+          padding: 18px; margin-top: 18px; }
+  .card h3 { margin: 0 0 4px; font-size: 15px; }
+  .card .meta { color: var(--muted); font-size: 12px; margin-bottom: 14px; word-break: break-all; }
+  .card .err { color: var(--err); font-size: 13px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+
+  .ver { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .ver .tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .5px;
+              padding: 3px 8px; border-radius: 999px; }
+  .tag.D { background: rgba(56,189,248,.15); color: var(--accent); border: 1px solid rgba(56,189,248,.4); }
+  .tag.E { background: rgba(52,211,153,.15); color: var(--ok); border: 1px solid rgba(52,211,153,.4); }
+  .ver .vlabel { font-size: 12px; color: var(--muted); margin: 6px 0 10px; }
+  .ver img { width: 100%; background: #fff; border-radius: 8px; display: block; }
+  .ver .fn { font-size: 11px; color: var(--muted); margin-top: 10px; word-break: break-all; }
+  .btn { display: inline-block; margin-top: 10px; background: var(--accent); color: #04222f;
+         text-decoration: none; font-weight: 600; font-size: 13px; padding: 8px 14px; border-radius: 8px;
+         border: none; cursor: pointer; }
+  .btn:hover { background: var(--accent2); }
+  .savednote { font-size: 11px; color: var(--ok); margin-top: 8px; word-break: break-all; }
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 10px 16px 40px; }
+  code { background: #0b1220; padding: 1px 6px; border-radius: 5px; color: var(--accent2); }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ Diagram Label Formatter</h1>
+  <p>Drop an accessory-connection PDF → get clean 65 × 90 mm labels: <b>-D</b> (Chinese + English) and <b>-E</b> (English only)</p>
+</header>
+
+<div class="wrap">
+  <div class="drop" id="drop">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+    </svg>
+    <div class="big">Drag &amp; drop PDF files here</div>
+    <div class="sub">or click to choose — you can select several at once</div>
+    <input type="file" id="file" accept="application/pdf,.pdf" multiple hidden>
+  </div>
+
+  <div class="opts">
+    <label><input type="checkbox" id="save" checked> Save JPGs to folder</label>
+    <input type="text" id="savedir" value="{{ save_dir }}" spellcheck="false">
+  </div>
+
+  <div class="status" id="status"></div>
+  <div id="results"></div>
+</div>
+
+<footer>Output: 65 × 90 mm · {{ target_w }} × {{ target_h }} px · {{ target_dpi }} dpi · JPEG. Both versions are extracted from the same source sheet.</footer>
+
+<script>
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('file');
+const statusEl = document.getElementById('status');
+const resultsEl = document.getElementById('results');
+
+drop.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => { if (fileInput.files.length) handle(fileInput.files); });
+
+['dragenter','dragover'].forEach(ev =>
+  drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev =>
+  drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('drag'); }));
+drop.addEventListener('drop', e => {
+  const files = [...e.dataTransfer.files].filter(f => /\.pdf$/i.test(f.name));
+  if (files.length) handle(files);
+  else setStatus('Please drop PDF files.', true);
+});
+
+function setStatus(html, isErr) {
+  statusEl.innerHTML = html;
+  statusEl.style.color = isErr ? 'var(--err)' : 'var(--muted)';
+}
+
+async function handle(files) {
+  resultsEl.innerHTML = '';
+  setStatus(`<span class="spin"></span>Processing ${files.length} file${files.length>1?'s':''}…`);
+  const fd = new FormData();
+  for (const f of files) fd.append('pdfs', f, f.name);
+  fd.append('save_to_disk', document.getElementById('save').checked ? 'true' : 'false');
+  fd.append('save_dir', document.getElementById('savedir').value);
+
+  try {
+    const resp = await fetch('/convert', { method: 'POST', body: fd });
+    const data = await resp.json();
+    if (!resp.ok) { setStatus(data.error || 'Conversion failed.', true); return; }
+    render(data);
+  } catch (err) {
+    setStatus('Network or server error: ' + err, true);
+  }
+}
+
+function render(data) {
+  const ok = data.results.filter(r => !r.error).length;
+  setStatus(`Done — ${ok} of ${data.results.length} file(s) converted`
+    + (data.saved ? ` · saved to <code>${escapeHtml(data.save_dir)}</code>` : ''));
+  for (const r of data.results) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    if (r.error) {
+      card.innerHTML = `<h3>${escapeHtml(r.source)}</h3><div class="err">⚠ ${escapeHtml(r.error)}</div>`;
+    } else {
+      let inner = `<h3>${escapeHtml(r.base)}</h3>`
+                + `<div class="meta">from ${escapeHtml(r.source)}</div><div class="grid">`;
+      for (const v of r.versions) {
+        inner += `<div class="ver">
+            <span class="tag ${v.suffix}">-${v.suffix}</span>
+            <div class="vlabel">${escapeHtml(v.label)}</div>
+            <img src="${v.preview}" alt="${escapeHtml(v.filename)}">
+            <div class="fn">${escapeHtml(v.filename)} · ${v.size[0]}×${v.size[1]} px</div>
+            <a class="btn" href="${v.download_url}" download="${escapeHtml(v.filename)}">⬇ Download (full res)</a>
+            ${v.saved_path ? `<div class="savednote">✓ saved</div>` : ''}
+        </div>`;
+      }
+      inner += `</div>`;
+      card.innerHTML = inner;
+    }
+    resultsEl.appendChild(card);
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+</script>
+</body>
+</html>
